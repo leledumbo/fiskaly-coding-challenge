@@ -28,15 +28,23 @@ func NewServer(listenAddress string) *Server {
 	}
 }
 
+var muxInstance *http.ServeMux
+
+func mux() *http.ServeMux {
+	if muxInstance == nil {
+		muxInstance = http.NewServeMux()
+	}
+
+	return muxInstance
+}
+
+func RegisterRoute(route string, handler http.HandlerFunc) {
+	mux().Handle(route, handler)
+}
+
 // Run registers all HandlerFuncs for the existing HTTP routes and starts the Server.
 func (s *Server) Run() error {
-	mux := http.NewServeMux()
-
-	mux.Handle("/api/v0/health", http.HandlerFunc(s.Health))
-
-	// TODO: register further HandlerFuncs here ...
-
-	return http.ListenAndServe(s.listenAddress, mux)
+	return http.ListenAndServe(s.listenAddress, mux())
 }
 
 // WriteInternalError writes a default internal error message as an HTTP response.
