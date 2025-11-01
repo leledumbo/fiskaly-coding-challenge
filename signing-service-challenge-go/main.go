@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 
-	"github.com/fiskaly/coding-challenges/signing-service-challenge/api"
+	"github.com/leledumbo/fiskaly-coding-challenge/signing-service-challenge-go/api/server"
 )
 
 const (
@@ -12,9 +12,9 @@ const (
 )
 
 func main() {
-	server := api.NewServer(ListenAddress)
+	s := server.NewServer(ListenAddress)
 
-	if err := server.Run(); err != nil {
+	if err := s.Run(); err != nil {
 		log.Fatal("Could not start server on ", ListenAddress)
 	}
 }

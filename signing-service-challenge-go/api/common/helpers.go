@@ -1,36 +1,15 @@
-package api
+package common
 
 import (
 	"encoding/json"
 	"net/http"
 )
 
-// Response is the generic API response container.
-type Response struct {
-	Data interface{} `json:"data"`
-}
-
-// ErrorResponse is the generic error API response container.
-type ErrorResponse struct {
-	Errors []string `json:"errors"`
-}
-
-// Server manages HTTP requests and dispatches them to the appropriate services.
-type Server struct {
-	listenAddress string
-}
-
-// NewServer is a factory to instantiate a new Server.
-func NewServer(listenAddress string) *Server {
-	return &Server{
-		listenAddress: listenAddress,
-		// TODO: add services / further dependencies here ...
-	}
-}
-
+// actual *http.ServeMux instance, singleton, inaccessible outside package
 var muxInstance *http.ServeMux
 
-func mux() *http.ServeMux {
+// Mux returns a *http.ServeMux instance lazily, acting as a singleton constructor
+func Mux() *http.ServeMux {
 	if muxInstance == nil {
 		muxInstance = http.NewServeMux()
 	}
@@ -38,13 +17,9 @@ func mux() *http.ServeMux {
 	return muxInstance
 }
 
+// RegisterRoute registers @route to the HTTP handler
 func RegisterRoute(route string, handler http.HandlerFunc) {
-	mux().Handle(route, handler)
-}
-
-// Run registers all HandlerFuncs for the existing HTTP routes and starts the Server.
-func (s *Server) Run() error {
-	return http.ListenAndServe(s.listenAddress, mux())
+	Mux().Handle(route, handler)
 }
 
 // WriteInternalError writes a default internal error message as an HTTP response.
