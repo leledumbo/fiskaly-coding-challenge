@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"github.com/leledumbo/fiskaly-coding-challenge/signing-service-challenge-go/api/common"
@@ -10,8 +11,6 @@ import (
 	"io"
 	"net/http"
 )
-
-var db persistence.Storage
 
 type CreateSignatureDeviceRequest struct {
 	DeviceID  string  `json:"device_id"`
@@ -65,6 +64,8 @@ func CreateSignatureDevice(response http.ResponseWriter, request *http.Request) 
 		return
 	}
 
+	db := persistence.GetInstance()
+
 	_, err := db.Load(input.DeviceID)
 	if err == nil && (input.Update == nil || !*input.Update) {
 		common.WriteErrorResponse(response, http.StatusBadRequest, []string{
@@ -102,10 +103,12 @@ func CreateSignatureDevice(response http.ResponseWriter, request *http.Request) 
 		label = *input.Label
 	}
 	device := domain.Device{
-		ID:         input.DeviceID,
-		Algorithm:  input.Algorithm,
-		PrivateKey: serializedPrivateKey,
-		Label:      label,
+		ID:               input.DeviceID,
+		Algorithm:        input.Algorithm,
+		PrivateKey:       serializedPrivateKey,
+		Label:            label,
+		SignatureCounter: 0,
+		LastSignature:    base64.StdEncoding.EncodeToString([]byte(input.DeviceID)),
 	}
 
 	err = db.Save(device.ID, &device)
@@ -123,7 +126,5 @@ func CreateSignatureDevice(response http.ResponseWriter, request *http.Request) 
 }
 
 func init() {
-	db = persistence.NewInMemoryDB()
-
 	common.RegisterRoute("/api/v0/create_signature_device", CreateSignatureDevice)
 }
