@@ -42,7 +42,6 @@ func (request *CreateSignatureDeviceRequest) UnmarshalJSON(data []byte) error {
 }
 
 type CreateSignatureDeviceResponse struct {
-	OK bool
 }
 
 // CreateSignatureDevice creates a signature device on the system using user selected algorihm, optionally labeling it for display
@@ -123,7 +122,7 @@ func CreateSignatureDevice(response http.ResponseWriter, request *http.Request) 
 	}
 
 	output := CreateSignatureDeviceResponse{
-		OK: true,
+		// feel free to add something else if required
 	}
 	common.WriteAPIResponse(response, http.StatusOK, output)
 }

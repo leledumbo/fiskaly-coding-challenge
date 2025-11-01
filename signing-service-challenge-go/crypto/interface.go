@@ -5,6 +5,7 @@ type Key any
 type KeyPair interface {
 	PublicKey() Key
 	PrivateKey() Key
+	// Return PEM encoded public and private key, in that order
 	Serialize() ([]byte, []byte, error)
 	// Given private key bytes, deserialize and assign resulting public and private keys to self
 	Deserialize([]byte) error

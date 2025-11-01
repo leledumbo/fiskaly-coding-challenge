@@ -60,7 +60,7 @@ func (kp *RSAKeyPair) Deserialize(privateKeyBytes []byte) error {
 type RSAAlgorithm struct {
 }
 
-// Generates a new RSAKeyPair.
+// Generates a new RSAKeyPair
 func (algo *RSAAlgorithm) GenerateKeyPair() (KeyPair, error) {
 	// Security has been ignored for the sake of simplicity.
 	key, err := rsa.GenerateKey(rand.Reader, 512)
