@@ -16,5 +16,5 @@ type Algorithm interface {
 	// Given PEM encoded private key, return a corresponding KeyPair
 	ConstructKeyPair(priv []byte) (KeyPair, error)
 	Sign(priv Key, data []byte) ([]byte, error)
-	Verify(pub Key, data []byte, signature []byte) ([]byte, error)
+	Verify(pub Key, data []byte, signature []byte) error
 }

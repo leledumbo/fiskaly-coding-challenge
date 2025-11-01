@@ -92,8 +92,14 @@ func (algo *RSAAlgorithm) Sign(priv Key, data []byte) ([]byte, error) {
 }
 
 // Verify ensures authenticity of @data given a @signature with a @pub key
-func (algo *RSAAlgorithm) Verify(pub Key, data []byte, signature []byte) ([]byte, error) {
-	return nil, nil
+func (algo *RSAAlgorithm) Verify(pub Key, data []byte, signature []byte) error {
+	hashed := sha256.Sum256(data)
+	rsaPublicKey, ok := pub.(*rsa.PublicKey)
+	if ok {
+		return rsa.VerifyPKCS1v15(rsaPublicKey, crypto.SHA256, hashed[:], signature[:])
+	} else {
+		return errors.New("Given private key is not a RSA private key")
+	}
 }
 
 func init() {

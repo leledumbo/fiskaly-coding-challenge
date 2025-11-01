@@ -99,8 +99,19 @@ func (algo *ECCAlgorithm) Sign(priv Key, data []byte) ([]byte, error) {
 }
 
 // Verify ensures authenticity of @data given a @signature with a @pub key
-func (algo *ECCAlgorithm) Verify(pub Key, data []byte, signature []byte) ([]byte, error) {
-	return nil, nil
+func (algo *ECCAlgorithm) Verify(pub Key, data []byte, signature []byte) error {
+	hashed := sha256.Sum256(data)
+	eccPublicKey, ok := pub.(*ecdsa.PublicKey)
+	if ok {
+		verified := ecdsa.VerifyASN1(eccPublicKey, hashed[:], signature[:])
+		if verified {
+			return nil
+		} else {
+			return errors.New("Verification failed")
+		}
+	} else {
+		return errors.New("Given private key is not a ECC private key")
+	}
 }
 
 func init() {
