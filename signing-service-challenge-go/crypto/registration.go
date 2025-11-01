@@ -11,9 +11,8 @@ func GetAlgorithm(name string) Algorithm {
 }
 
 func RegisterAlgorithm(name string, algo Algorithm) {
+	if algorithms == nil {
+		algorithms = make(map[string]Algorithm)
+	}
 	algorithms[name] = algo
-}
-
-func init() {
-	algorithms = make(map[string]Algorithm)
 }

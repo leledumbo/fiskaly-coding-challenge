@@ -43,6 +43,9 @@ func (kp *RSAKeyPair) Serialize() ([]byte, []byte, error) {
 
 func (kp *RSAKeyPair) Deserialize(privateKeyBytes []byte) error {
 	block, _ := pem.Decode(privateKeyBytes)
+	if block == nil {
+		return errors.New("Given private key is not a valid PEM encoded key")
+	}
 	privateKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
 	if err != nil {
 		return err

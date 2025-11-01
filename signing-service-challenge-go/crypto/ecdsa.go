@@ -2,8 +2,12 @@ package crypto
 
 import (
 	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/sha256"
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 )
 
 // ECCKeyPair is a DTO that holds ECC private and public keys.
@@ -12,50 +16,93 @@ type ECCKeyPair struct {
 	Private *ecdsa.PrivateKey
 }
 
-// ECCMarshaler can encode and decode an ECC key pair.
-type ECCMarshaler struct{}
-
-// NewECCMarshaler creates a new ECCMarshaler.
-func NewECCMarshaler() ECCMarshaler {
-	return ECCMarshaler{}
+func (kp *ECCKeyPair) PublicKey() Key {
+	return kp.Public
 }
 
-// Encode takes an ECCKeyPair and encodes it to be written on disk.
-// It returns the public and the private key as a byte slice.
-func (m ECCMarshaler) Encode(keyPair ECCKeyPair) ([]byte, []byte, error) {
-	privateKeyBytes, err := x509.MarshalECPrivateKey(keyPair.Private)
+func (kp *ECCKeyPair) PrivateKey() Key {
+	return kp.Private
+}
+
+func (kp *ECCKeyPair) Serialize() ([]byte, []byte, error) {
+	privateKeyBytes, err := x509.MarshalECPrivateKey(kp.Private)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	publicKeyBytes, err := x509.MarshalPKIXPublicKey(keyPair.Public)
+	publicKeyBytes, err := x509.MarshalPKIXPublicKey(kp.Public)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	encodedPrivate := pem.EncodeToMemory(&pem.Block{
-		Type:  "PRIVATE_KEY",
+		Type:  "PRIVATE KEY",
 		Bytes: privateKeyBytes,
 	})
 
 	encodedPublic := pem.EncodeToMemory(&pem.Block{
-		Type:  "PUBLIC_KEY",
+		Type:  "PUBLIC KEY",
 		Bytes: publicKeyBytes,
 	})
 
 	return encodedPublic, encodedPrivate, nil
 }
 
-// Decode assembles an ECCKeyPair from an encoded private key.
-func (m ECCMarshaler) Decode(privateKeyBytes []byte) (*ECCKeyPair, error) {
+func (kp *ECCKeyPair) Deserialize(privateKeyBytes []byte) error {
 	block, _ := pem.Decode(privateKeyBytes)
+	if block == nil {
+		return errors.New("Given private key is not a valid PEM encoded key")
+	}
 	privateKey, err := x509.ParseECPrivateKey(block.Bytes)
+	if err != nil {
+		return err
+	}
+
+	kp.Private = privateKey
+	kp.Public = &privateKey.PublicKey
+	return nil
+}
+
+// ECCAlgorithm implements methods to generate ECC key pair as well as to sign and verify data
+type ECCAlgorithm struct {
+}
+
+// Generates a new ECCKeyPair.
+func (algo *ECCAlgorithm) GenerateKeyPair() (KeyPair, error) {
+	// Security has been ignored for the sake of simplicity.
+	key, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
 	if err != nil {
 		return nil, err
 	}
 
 	return &ECCKeyPair{
-		Private: privateKey,
-		Public:  &privateKey.PublicKey,
+		Public:  &key.PublicKey,
+		Private: key,
 	}, nil
+}
+
+func (algo *ECCAlgorithm) ConstructKeyPair(priv []byte) (KeyPair, error) {
+	kp := &ECCKeyPair{}
+	err := kp.Deserialize(priv)
+	return kp, err
+}
+
+// Sign signs @data with a @priv key, returning its signature
+func (algo *ECCAlgorithm) Sign(priv Key, data []byte) ([]byte, error) {
+	hashed := sha256.Sum256(data)
+	eccPrivateKey, ok := priv.(*ecdsa.PrivateKey)
+	if ok {
+		return ecdsa.SignASN1(rand.Reader, eccPrivateKey, hashed[:])
+	} else {
+		return nil, errors.New("Given private key is not an ECC private key")
+	}
+}
+
+// Verify ensures authenticity of @data given a @signature with a @pub key
+func (algo *ECCAlgorithm) Verify(pub Key, data []byte, signature []byte) ([]byte, error) {
+	return nil, nil
+}
+
+func init() {
+	RegisterAlgorithm("ecc", &ECCAlgorithm{})
 }
