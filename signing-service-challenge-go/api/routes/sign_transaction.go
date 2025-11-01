@@ -4,23 +4,21 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/leledumbo/fiskaly-coding-challenge/signing-service-challenge-go/api/common"
 	"github.com/leledumbo/fiskaly-coding-challenge/signing-service-challenge-go/crypto"
-	"github.com/leledumbo/fiskaly-coding-challenge/signing-service-challenge-go/domain"
 	"github.com/leledumbo/fiskaly-coding-challenge/signing-service-challenge-go/persistence"
 	"io"
 	"net/http"
 )
 
-type CreateSignatureDeviceRequest struct {
-	DeviceID  string  `json:"device_id"`
-	Algorithm string  `json:"algorithm"`
-	Label     *string `json:"label,omitempty"`
-	Update    *bool   `json:"update,omitempty"`
+type SignTransactionRequest struct {
+	DeviceID string `json:"device_id"`
+	Data     string `json:"data"`
 }
 
-func (request *CreateSignatureDeviceRequest) UnmarshalJSON(data []byte) error {
-	type Alias CreateSignatureDeviceRequest // Avoid recursion
+func (request *SignTransactionRequest) UnmarshalJSON(data []byte) error {
+	type Alias SignTransactionRequest // Avoid recursion
 	aux := &struct {
 		*Alias
 	}{
@@ -34,19 +32,19 @@ func (request *CreateSignatureDeviceRequest) UnmarshalJSON(data []byte) error {
 	if request.DeviceID == "" {
 		return errors.New("Device ID is required")
 	}
-	if request.Algorithm == "" {
-		return errors.New("Algorithm is required")
+	if request.Data == "" {
+		return errors.New("Data is required")
 	}
 
 	return nil
 }
 
-type CreateSignatureDeviceResponse struct {
-	OK bool
+type SignTransactionResponse struct {
+	Signature  string `json:"signature"`
+	SignedData string `json:"signed_data"`
 }
 
-// CreateSignatureDevice creates a signature device on the system using user selected algorihm, optionally labeling it for display
-func CreateSignatureDevice(response http.ResponseWriter, request *http.Request) {
+func SignTransaction(response http.ResponseWriter, request *http.Request) {
 	if request.Method != http.MethodPost {
 		common.WriteErrorResponse(response, http.StatusMethodNotAllowed, []string{
 			http.StatusText(http.StatusMethodNotAllowed),
@@ -56,7 +54,7 @@ func CreateSignatureDevice(response http.ResponseWriter, request *http.Request) 
 
 	body, _ := io.ReadAll(request.Body)
 	defer request.Body.Close()
-	var input CreateSignatureDeviceRequest
+	var input SignTransactionRequest
 	if err := json.Unmarshal(body, &input); err != nil {
 		common.WriteErrorResponse(response, http.StatusBadRequest, []string{
 			err.Error(),
@@ -66,23 +64,26 @@ func CreateSignatureDevice(response http.ResponseWriter, request *http.Request) 
 
 	db := persistence.GetInstance()
 
-	_, err := db.Load(input.DeviceID)
-	if err == nil && (input.Update == nil || !*input.Update) {
-		common.WriteErrorResponse(response, http.StatusBadRequest, []string{
-			"Device with ID " + input.DeviceID + `already exists, if you want to update, supply "update":true in the request body`,
+	device, err := db.Load(input.DeviceID)
+	if err != nil {
+		common.WriteErrorResponse(response, http.StatusNotFound, []string{
+			err.Error(),
 		})
 		return
 	}
 
-	algo := crypto.GetAlgorithm(input.Algorithm)
+	algo := crypto.GetAlgorithm(device.Algorithm)
 	if algo == nil {
-		common.WriteErrorResponse(response, http.StatusBadRequest, []string{
-			"Algorithm " + input.Algorithm + " not available",
+		// shouldn't happen, but possible to happen, so we still handle it,
+		// however this is not user error and therefore, an internal server error
+		common.WriteErrorResponse(response, http.StatusInternalServerError, []string{
+			"Something is wrong on our side, please try again in a few moments, our development team has been notified",
 		})
+		// log err to system log, email, prometheus, whatever, skipped for brevity
 		return
 	}
 
-	keyPair, err := algo.GenerateKeyPair()
+	kp, err := algo.ConstructKeyPair(device.PrivateKey)
 	if err != nil {
 		common.WriteErrorResponse(response, http.StatusInternalServerError, []string{
 			"Something is wrong on our side, please try again in a few moments, our development team has been notified",
@@ -91,7 +92,8 @@ func CreateSignatureDevice(response http.ResponseWriter, request *http.Request) 
 		return
 	}
 
-	_, serializedPrivateKey, err := keyPair.Serialize()
+	data := fmt.Sprintf("%d_%s_%s", device.SignatureCounter, input.Data, device.LastSignature)
+	signature, err := algo.Sign(kp.PrivateKey(), []byte(data))
 	if err != nil {
 		common.WriteErrorResponse(response, http.StatusInternalServerError, []string{
 			"Something is wrong on our side, please try again in a few moments, our development team has been notified",
@@ -100,34 +102,18 @@ func CreateSignatureDevice(response http.ResponseWriter, request *http.Request) 
 		return
 	}
 
-	label := ""
-	if input.Label != nil {
-		label = *input.Label
-	}
-	device := domain.Device{
-		ID:               input.DeviceID,
-		Algorithm:        input.Algorithm,
-		PrivateKey:       serializedPrivateKey,
-		Label:            label,
-		SignatureCounter: 0,
-		LastSignature:    base64.StdEncoding.EncodeToString([]byte(input.DeviceID)),
+	base64encodedSignature := base64.StdEncoding.EncodeToString([]byte(signature))
+	output := SignTransactionResponse{
+		Signature:  base64encodedSignature,
+		SignedData: data,
 	}
 
-	err = db.Save(device.ID, &device)
-	if err != nil {
-		common.WriteErrorResponse(response, http.StatusInternalServerError, []string{
-			"Something is wrong on our side, please try again in a few moments, our development team has been notified",
-		})
-		// log err to system log, email, prometheus, whatever, skipped for brevity
-		return
-	}
+	device.SignatureCounter++
+	device.LastSignature = base64encodedSignature
 
-	output := CreateSignatureDeviceResponse{
-		OK: true,
-	}
 	common.WriteAPIResponse(response, http.StatusOK, output)
 }
 
 func init() {
-	common.RegisterRoute("/api/v0/create_signature_device", CreateSignatureDevice)
+	common.RegisterRoute("/api/v0/sign_transaction", SignTransaction)
 }

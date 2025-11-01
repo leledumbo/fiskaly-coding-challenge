@@ -1,10 +1,13 @@
 package crypto
 
 import (
+	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 )
 
 // RSAKeyPair is a DTO that holds RSA private and public keys.
@@ -50,7 +53,7 @@ func (kp *RSAKeyPair) Deserialize(privateKeyBytes []byte) error {
 	return nil
 }
 
-// RSAAlgorithm implements methods to generate RSA key pair as well as to (en|de)crypt data with
+// RSAAlgorithm implements methods to generate RSA key pair as well as to sign and verify data
 type RSAAlgorithm struct {
 }
 
@@ -68,13 +71,25 @@ func (algo *RSAAlgorithm) GenerateKeyPair() (KeyPair, error) {
 	}, nil
 }
 
-// Encrypt encrypts @plainText with a given @pub key
-func (algo *RSAAlgorithm) Encrypt(pub Key, plaintext []byte) ([]byte, error) {
-	return nil, nil
+func (algo *RSAAlgorithm) ConstructKeyPair(priv []byte) (KeyPair, error) {
+	kp := &RSAKeyPair{}
+	err := kp.Deserialize(priv)
+	return kp, err
 }
 
-// Decrypt Decrypts @cipherText with a given @priv key
-func (algo *RSAAlgorithm) Decrypt(priv Key, ciphertext []byte) ([]byte, error) {
+// Sign signs @data with a @priv key, returning its signature
+func (algo *RSAAlgorithm) Sign(priv Key, data []byte) ([]byte, error) {
+	hashed := sha256.Sum256(data)
+	rsaPrivateKey, ok := priv.(*rsa.PrivateKey)
+	if ok {
+		return rsa.SignPKCS1v15(rand.Reader, rsaPrivateKey, crypto.SHA256, hashed[:])
+	} else {
+		return nil, errors.New("Given private key is not a RSA private key")
+	}
+}
+
+// Verify ensures authenticity of @data given a @signature with a @pub key
+func (algo *RSAAlgorithm) Verify(pub Key, data []byte, signature []byte) ([]byte, error) {
 	return nil, nil
 }
 
