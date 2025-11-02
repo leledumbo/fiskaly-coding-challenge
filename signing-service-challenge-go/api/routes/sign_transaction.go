@@ -63,7 +63,6 @@ func SignTransaction(response http.ResponseWriter, request *http.Request) {
 	}
 
 	db := persistence.GetInstance()
-
 	device, err := db.Load(input.DeviceID)
 	if err != nil {
 		common.WriteErrorResponse(response, http.StatusNotFound, []string{

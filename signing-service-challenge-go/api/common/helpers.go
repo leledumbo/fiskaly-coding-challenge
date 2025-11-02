@@ -5,7 +5,7 @@ import (
 	"net/http"
 )
 
-// actual *http.ServeMux instance, singleton, inaccessible outside package
+// Actual *http.ServeMux instance, singleton, inaccessible outside package
 var muxInstance *http.ServeMux
 
 // Mux returns a *http.ServeMux instance lazily, acting as a singleton constructor

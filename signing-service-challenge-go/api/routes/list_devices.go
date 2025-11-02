@@ -11,6 +11,7 @@ type ListDevicesResponse struct {
 	Devices []*domain.Device `json:"devices"`
 }
 
+// ListDevices lists all devices on the system, no filter
 func ListDevices(response http.ResponseWriter, request *http.Request) {
 	if request.Method != http.MethodGet {
 		common.WriteErrorResponse(response, http.StatusMethodNotAllowed, []string{
@@ -20,7 +21,6 @@ func ListDevices(response http.ResponseWriter, request *http.Request) {
 	}
 
 	db := persistence.GetInstance()
-
 	output := ListDevicesResponse{
 		Devices: db.List(),
 	}

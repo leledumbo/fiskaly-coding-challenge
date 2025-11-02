@@ -10,7 +10,7 @@ import (
 	"errors"
 )
 
-// RSAKeyPair is a DTO that holds RSA private and public keys.
+// RSAKeyPair is a DTO that holds RSA private and public keys
 type RSAKeyPair struct {
 	Public  *rsa.PublicKey
 	Private *rsa.PrivateKey
@@ -60,7 +60,6 @@ func (kp *RSAKeyPair) Deserialize(privateKeyBytes []byte) error {
 type RSAAlgorithm struct {
 }
 
-// Generates a new RSAKeyPair
 func (algo *RSAAlgorithm) GenerateKeyPair() (KeyPair, error) {
 	// Security has been ignored for the sake of simplicity.
 	key, err := rsa.GenerateKey(rand.Reader, 512)
@@ -80,7 +79,6 @@ func (algo *RSAAlgorithm) ConstructKeyPair(priv []byte) (KeyPair, error) {
 	return kp, err
 }
 
-// Sign signs @data with a @priv key, returning its signature
 func (algo *RSAAlgorithm) Sign(priv Key, data []byte) ([]byte, error) {
 	hashed := sha256.Sum256(data)
 	rsaPrivateKey, ok := priv.(*rsa.PrivateKey)
@@ -91,7 +89,6 @@ func (algo *RSAAlgorithm) Sign(priv Key, data []byte) ([]byte, error) {
 	}
 }
 
-// Verify ensures authenticity of @data given a @signature with a @pub key
 func (algo *RSAAlgorithm) Verify(pub Key, data []byte, signature []byte) error {
 	hashed := sha256.Sum256(data)
 	rsaPublicKey, ok := pub.(*rsa.PublicKey)

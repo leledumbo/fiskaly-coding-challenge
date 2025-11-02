@@ -16,7 +16,7 @@ type CreateSignatureDeviceRequest struct {
 	DeviceID  string  `json:"device_id"`
 	Algorithm string  `json:"algorithm"`
 	Label     *string `json:"label,omitempty"`
-	Update    *bool   `json:"update,omitempty"`
+	Update    *bool   `json:"update,omitempty"` // empty = false, true must be explicitly given
 }
 
 func (request *CreateSignatureDeviceRequest) UnmarshalJSON(data []byte) error {
@@ -64,7 +64,6 @@ func CreateSignatureDevice(response http.ResponseWriter, request *http.Request) 
 	}
 
 	db := persistence.GetInstance()
-
 	_, err := db.Load(input.DeviceID)
 	if err == nil && (input.Update == nil || !*input.Update) {
 		common.WriteErrorResponse(response, http.StatusBadRequest, []string{

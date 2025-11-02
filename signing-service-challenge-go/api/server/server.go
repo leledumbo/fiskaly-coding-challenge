@@ -19,7 +19,7 @@ func NewServer(listenAddress string) *Server {
 	}
 }
 
-// Run registers all HandlerFuncs for the existing HTTP routes and starts the Server.
+// Run starts the Server.
 func (s *Server) Run() error {
 	return http.ListenAndServe(s.listenAddress, common.Mux())
 }

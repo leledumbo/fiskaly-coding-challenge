@@ -10,7 +10,7 @@ import (
 	"errors"
 )
 
-// ECCKeyPair is a DTO that holds ECC private and public keys.
+// ECCKeyPair is a DTO that holds ECC private and public keys
 type ECCKeyPair struct {
 	Public  *ecdsa.PublicKey
 	Private *ecdsa.PrivateKey
@@ -67,7 +67,6 @@ func (kp *ECCKeyPair) Deserialize(privateKeyBytes []byte) error {
 type ECCAlgorithm struct {
 }
 
-// Generates a new ECCKeyPair.
 func (algo *ECCAlgorithm) GenerateKeyPair() (KeyPair, error) {
 	// Security has been ignored for the sake of simplicity.
 	key, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
@@ -87,7 +86,6 @@ func (algo *ECCAlgorithm) ConstructKeyPair(priv []byte) (KeyPair, error) {
 	return kp, err
 }
 
-// Sign signs @data with a @priv key, returning its signature
 func (algo *ECCAlgorithm) Sign(priv Key, data []byte) ([]byte, error) {
 	hashed := sha256.Sum256(data)
 	eccPrivateKey, ok := priv.(*ecdsa.PrivateKey)
@@ -98,7 +96,6 @@ func (algo *ECCAlgorithm) Sign(priv Key, data []byte) ([]byte, error) {
 	}
 }
 
-// Verify ensures authenticity of @data given a @signature with a @pub key
 func (algo *ECCAlgorithm) Verify(pub Key, data []byte, signature []byte) error {
 	hashed := sha256.Sum256(data)
 	eccPublicKey, ok := pub.(*ecdsa.PublicKey)
