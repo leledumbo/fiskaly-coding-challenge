@@ -66,7 +66,11 @@ func VerifySignature(response http.ResponseWriter, request *http.Request) {
 	}
 
 	db := persistence.GetInstance()
-	device, err := db.Load(input.DeviceID)
+	as := persistence.NewAtomicStorage(db)
+	as.Lock(input.DeviceID)
+	defer as.Unlock(input.DeviceID)
+
+	device, err := as.Load(input.DeviceID)
 	if err != nil {
 		common.WriteErrorResponse(response, http.StatusNotFound, []string{
 			err.Error(),

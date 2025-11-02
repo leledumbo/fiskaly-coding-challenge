@@ -2,7 +2,10 @@ module github.com/leledumbo/fiskaly-coding-challenge/signing-service-challenge-g
 
 go 1.20
 
-require github.com/smartystreets/goconvey v1.8.1
+require (
+	github.com/golang/mock v1.6.0
+	github.com/smartystreets/goconvey v1.8.1
+)
 
 require (
 	github.com/gopherjs/gopherjs v1.17.2 // indirect

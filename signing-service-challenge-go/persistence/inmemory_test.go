@@ -45,3 +45,35 @@ func TestSaveLoad(t *testing.T) {
 		})
 	})
 }
+
+func TestList(t *testing.T) {
+	Convey("Given an InMemoryDB instance", t, func() {
+		db := NewInMemoryDB()
+
+		Convey(`and 3 devices with different IDs`, func() {
+			d1 := &domain.Device{ID: "a"}
+			d2 := &domain.Device{ID: "b"}
+			d3 := &domain.Device{ID: "c"}
+
+			Convey("when they're all saved", func() {
+				err1 := db.Save(d1.ID, d1)
+				err2 := db.Save(d2.ID, d2)
+				err3 := db.Save(d3.ID, d3)
+
+				Convey("there should be no error", func() {
+					So(err1, ShouldBeNil)
+					So(err2, ShouldBeNil)
+					So(err3, ShouldBeNil)
+				})
+
+				Convey("and when they're listed", func() {
+					ds := db.List()
+
+					Convey("there should be 3 of them", func() {
+						So(len(ds), ShouldEqual, 3)
+					})
+				})
+			})
+		})
+	})
+}
