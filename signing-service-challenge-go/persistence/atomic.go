@@ -1,6 +1,7 @@
 package persistence
 
 import (
+	"github.com/leledumbo/fiskaly-coding-challenge/signing-service-challenge-go/domain"
 	"sync"
 )
 
@@ -22,6 +23,20 @@ func (s *AtomicStorage) Unlock(id string) {
 	if mu, ok := s.locks.Load(id); ok {
 		mu.(*sync.Mutex).Unlock()
 	}
+}
+
+// Fulfill Storage interface so it can be used as a Storage, too
+
+func (s *AtomicStorage) Load(id string) (*domain.Device, error) {
+	return s.base.Load(id)
+}
+
+func (s *AtomicStorage) Save(id string, data *domain.Device) error {
+	return s.base.Save(id, data)
+}
+
+func (s *AtomicStorage) List() []*domain.Device {
+	return s.base.List()
 }
 
 // NewAtomicStorage wraps any Storage with per-ID concurrency protection

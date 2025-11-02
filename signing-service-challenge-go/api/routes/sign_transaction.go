@@ -67,7 +67,7 @@ func SignTransaction(response http.ResponseWriter, request *http.Request) {
 	as.Lock(input.DeviceID)
 	defer as.Unlock(input.DeviceID)
 
-	device, err := db.Load(input.DeviceID)
+	device, err := as.Load(input.DeviceID)
 	if err != nil {
 		common.WriteErrorResponse(response, http.StatusNotFound, []string{
 			err.Error(),
@@ -114,7 +114,7 @@ func SignTransaction(response http.ResponseWriter, request *http.Request) {
 	device.SignatureCounter++
 	device.LastSignature = base64encodedSignature
 
-	err = db.Save(device.ID, device)
+	err = as.Save(device.ID, device)
 	if err != nil {
 		common.WriteErrorResponse(response, http.StatusInternalServerError, []string{
 			"Something is wrong on our side, please try again in a few moments, our development team has been notified",
