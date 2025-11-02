@@ -63,6 +63,10 @@ func SignTransaction(response http.ResponseWriter, request *http.Request) {
 	}
 
 	db := persistence.GetInstance()
+	as := persistence.NewAtomicStorage(db)
+	as.Lock(input.DeviceID)
+	defer as.Unlock(input.DeviceID)
+
 	device, err := db.Load(input.DeviceID)
 	if err != nil {
 		common.WriteErrorResponse(response, http.StatusNotFound, []string{
@@ -109,6 +113,15 @@ func SignTransaction(response http.ResponseWriter, request *http.Request) {
 
 	device.SignatureCounter++
 	device.LastSignature = base64encodedSignature
+
+	err = db.Save(device.ID, device)
+	if err != nil {
+		common.WriteErrorResponse(response, http.StatusInternalServerError, []string{
+			"Something is wrong on our side, please try again in a few moments, our development team has been notified",
+		})
+		// log err to system log, email, prometheus, whatever, skipped for brevity
+		return
+	}
 
 	common.WriteAPIResponse(response, http.StatusOK, output)
 }
