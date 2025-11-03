@@ -30,7 +30,7 @@ func TestListDevices(t *testing.T) {
 		persistence.SetInstance(mockDB)
 
 		Convey("returns 405 if method is not GET", func() {
-			req := httptest.NewRequest(http.MethodPost, "/signature-device", bytes.NewBuffer(nil))
+			req := httptest.NewRequest(http.MethodPost, "/list_devices", bytes.NewBuffer(nil))
 			rec := httptest.NewRecorder()
 
 			routes.ListDevices(rec, req)
@@ -46,7 +46,7 @@ func TestListDevices(t *testing.T) {
 		Convey("returns empty list if no devices", func() {
 			mockDB.EXPECT().List().Return([]*domain.Device{})
 
-			req := httptest.NewRequest(http.MethodGet, "/signature-device", nil)
+			req := httptest.NewRequest(http.MethodGet, "/list_devices", nil)
 			rec := httptest.NewRecorder()
 
 			routes.ListDevices(rec, req)
@@ -63,7 +63,7 @@ func TestListDevices(t *testing.T) {
 			dev := &domain.Device{ID: "dev123", Algorithm: "RSA"}
 			mockDB.EXPECT().List().Return([]*domain.Device{dev})
 
-			req := httptest.NewRequest(http.MethodGet, "/signature-device", nil)
+			req := httptest.NewRequest(http.MethodGet, "/list_devices", nil)
 			rec := httptest.NewRecorder()
 
 			routes.ListDevices(rec, req)
@@ -85,7 +85,7 @@ func TestListDevices(t *testing.T) {
 			}
 			mockDB.EXPECT().List().Return(devices)
 
-			req := httptest.NewRequest(http.MethodGet, "/signature-device", nil)
+			req := httptest.NewRequest(http.MethodGet, "/list_devices", nil)
 			rec := httptest.NewRecorder()
 
 			routes.ListDevices(rec, req)
