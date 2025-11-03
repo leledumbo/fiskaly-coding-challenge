@@ -36,7 +36,7 @@ func TestSignTransaction(t *testing.T) {
 		mockKeyPair := mocks.NewMockKeyPair(ctrl)
 
 		Convey("returns 405 if method not POST", func() {
-			req := httptest.NewRequest(http.MethodGet, "/sign", nil)
+			req := httptest.NewRequest(http.MethodGet, "/api/v0/sign_transaction", nil)
 			rec := httptest.NewRecorder()
 
 			routes.SignTransaction(rec, req)
@@ -48,7 +48,7 @@ func TestSignTransaction(t *testing.T) {
 		})
 
 		Convey("returns 400 if JSON is invalid", func() {
-			req := httptest.NewRequest(http.MethodPost, "/sign", bytes.NewBuffer([]byte("{invalid-json")))
+			req := httptest.NewRequest(http.MethodPost, "/api/v0/sign_transaction", bytes.NewBuffer([]byte("{invalid-json")))
 			rec := httptest.NewRecorder()
 
 			routes.SignTransaction(rec, req)
@@ -59,7 +59,7 @@ func TestSignTransaction(t *testing.T) {
 
 		Convey("returns 400 if device_id missing", func() {
 			body := []byte(`{"data":"payload"}`)
-			req := httptest.NewRequest(http.MethodPost, "/sign", bytes.NewBuffer(body))
+			req := httptest.NewRequest(http.MethodPost, "/api/v0/sign_transaction", bytes.NewBuffer(body))
 			rec := httptest.NewRecorder()
 
 			routes.SignTransaction(rec, req)
@@ -70,7 +70,7 @@ func TestSignTransaction(t *testing.T) {
 
 		Convey("returns 400 if data missing", func() {
 			body := []byte(`{"device_id":"dev123"}`)
-			req := httptest.NewRequest(http.MethodPost, "/sign", bytes.NewBuffer(body))
+			req := httptest.NewRequest(http.MethodPost, "/api/v0/sign_transaction", bytes.NewBuffer(body))
 			rec := httptest.NewRecorder()
 
 			routes.SignTransaction(rec, req)
@@ -81,7 +81,7 @@ func TestSignTransaction(t *testing.T) {
 
 		Convey("returns 404 if device not found", func() {
 			mockDB.EXPECT().Load("dev123").Return(nil, errors.New("not found"))
-			req := httptest.NewRequest(http.MethodPost, "/sign", bytes.NewBuffer([]byte(`{"device_id":"dev123","data":"payload"}`)))
+			req := httptest.NewRequest(http.MethodPost, "/api/v0/sign_transaction", bytes.NewBuffer([]byte(`{"device_id":"dev123","data":"payload"}`)))
 			rec := httptest.NewRecorder()
 
 			routes.SignTransaction(rec, req)
@@ -95,7 +95,7 @@ func TestSignTransaction(t *testing.T) {
 			mockDB.EXPECT().Load("dev123").Return(dev, nil)
 			crypto.RegisterAlgorithm("RSA", nil)
 
-			req := httptest.NewRequest(http.MethodPost, "/sign", bytes.NewBuffer([]byte(`{"device_id":"dev123","data":"payload"}`)))
+			req := httptest.NewRequest(http.MethodPost, "/api/v0/sign_transaction", bytes.NewBuffer([]byte(`{"device_id":"dev123","data":"payload"}`)))
 			rec := httptest.NewRecorder()
 
 			routes.SignTransaction(rec, req)
@@ -110,7 +110,7 @@ func TestSignTransaction(t *testing.T) {
 			crypto.RegisterAlgorithm("RSA", mockAlgo)
 			mockAlgo.EXPECT().ConstructKeyPair(gomock.Any()).Return(nil, errors.New("keypair fail"))
 
-			req := httptest.NewRequest(http.MethodPost, "/sign", bytes.NewBuffer([]byte(`{"device_id":"dev123","data":"payload"}`)))
+			req := httptest.NewRequest(http.MethodPost, "/api/v0/sign_transaction", bytes.NewBuffer([]byte(`{"device_id":"dev123","data":"payload"}`)))
 			rec := httptest.NewRecorder()
 
 			routes.SignTransaction(rec, req)
@@ -127,7 +127,7 @@ func TestSignTransaction(t *testing.T) {
 			mockKeyPair.EXPECT().PrivateKey().Return("priv")
 			mockAlgo.EXPECT().Sign("priv", gomock.Any()).Return(nil, errors.New("sign fail"))
 
-			req := httptest.NewRequest(http.MethodPost, "/sign", bytes.NewBuffer([]byte(`{"device_id":"dev123","data":"payload"}`)))
+			req := httptest.NewRequest(http.MethodPost, "/api/v0/sign_transaction", bytes.NewBuffer([]byte(`{"device_id":"dev123","data":"payload"}`)))
 			rec := httptest.NewRecorder()
 
 			routes.SignTransaction(rec, req)
@@ -146,7 +146,7 @@ func TestSignTransaction(t *testing.T) {
 			mockKeyPair.EXPECT().PrivateKey().Return("priv")
 			mockAlgo.EXPECT().Sign("priv", gomock.Any()).Return([]byte("sig"), nil)
 
-			req := httptest.NewRequest(http.MethodPost, "/sign", bytes.NewBuffer([]byte(`{"device_id":"dev123","data":"payload"}`)))
+			req := httptest.NewRequest(http.MethodPost, "/api/v0/sign_transaction", bytes.NewBuffer([]byte(`{"device_id":"dev123","data":"payload"}`)))
 			rec := httptest.NewRecorder()
 
 			routes.SignTransaction(rec, req)
@@ -172,7 +172,7 @@ func TestSignTransaction(t *testing.T) {
 			mockAlgo.EXPECT().Sign("priv", gomock.Any()).Return([]byte("mysignature"), nil)
 
 			body := []byte(`{"device_id":"dev123","data":"payload"}`)
-			req := httptest.NewRequest(http.MethodPost, "/sign", bytes.NewBuffer(body))
+			req := httptest.NewRequest(http.MethodPost, "/api/v0/sign_transaction", bytes.NewBuffer(body))
 			rec := httptest.NewRecorder()
 
 			routes.SignTransaction(rec, req)

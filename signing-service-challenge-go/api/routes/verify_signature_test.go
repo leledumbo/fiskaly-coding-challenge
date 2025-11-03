@@ -2,7 +2,6 @@ package routes_test
 
 import (
 	"bytes"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -10,14 +9,19 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
+	. "github.com/smartystreets/goconvey/convey"
+
 	"github.com/leledumbo/fiskaly-coding-challenge/signing-service-challenge-go/api/common"
 	"github.com/leledumbo/fiskaly-coding-challenge/signing-service-challenge-go/api/routes"
 	"github.com/leledumbo/fiskaly-coding-challenge/signing-service-challenge-go/crypto"
 	"github.com/leledumbo/fiskaly-coding-challenge/signing-service-challenge-go/domain"
 	"github.com/leledumbo/fiskaly-coding-challenge/signing-service-challenge-go/persistence"
 	"github.com/leledumbo/fiskaly-coding-challenge/signing-service-challenge-go/testutil/mocks"
-	. "github.com/smartystreets/goconvey/convey"
 )
+
+type verifyAPIResponse struct {
+	Data routes.VerifySignatureResponse `json:"data"`
+}
 
 func TestVerifySignature(t *testing.T) {
 	Convey("VerifySignature endpoint", t, func() {
@@ -27,99 +31,167 @@ func TestVerifySignature(t *testing.T) {
 		mockDB := mocks.NewMockStorage(ctrl)
 		persistence.SetInstance(mockDB)
 
-		Convey("returns 405 if method is not POST", func() {
-			req := httptest.NewRequest(http.MethodGet, "/verify", nil)
+		mockAlgo := mocks.NewMockAlgorithm(ctrl)
+		mockKeyPair := mocks.NewMockKeyPair(ctrl)
+		mockPubKey := "pub"
+
+		Convey("returns 405 if method not POST", func() {
+			req := httptest.NewRequest(http.MethodGet, "/api/v0/verify_signature", nil)
 			rec := httptest.NewRecorder()
 
 			routes.VerifySignature(rec, req)
 
 			So(rec.Code, ShouldEqual, http.StatusMethodNotAllowed)
+			var errResp common.ErrorResponse
+			json.Unmarshal(rec.Body.Bytes(), &errResp)
+			So(errResp.Errors, ShouldContain, http.StatusText(http.StatusMethodNotAllowed))
 		})
 
-		Convey("returns 400 if request body is missing required fields", func() {
-			body := `{"device_id": "dev123"}`
-			req := httptest.NewRequest(http.MethodPost, "/verify", bytes.NewBufferString(body))
+		Convey("returns 400 if JSON is invalid", func() {
+			req := httptest.NewRequest(http.MethodPost, "/api/v0/verify_signature", bytes.NewBuffer([]byte("{invalid-json")))
 			rec := httptest.NewRecorder()
 
 			routes.VerifySignature(rec, req)
 
 			So(rec.Code, ShouldEqual, http.StatusBadRequest)
+			So(rec.Body.String(), ShouldContainSubstring, "invalid character")
+		})
+
+		Convey("returns 400 if device_id missing", func() {
+			body := []byte(`{"data":"payload","signature":"c2ln"}`)
+			req := httptest.NewRequest(http.MethodPost, "/api/v0/verify_signature", bytes.NewBuffer(body))
+			rec := httptest.NewRecorder()
+
+			routes.VerifySignature(rec, req)
+
+			So(rec.Code, ShouldEqual, http.StatusBadRequest)
+			So(rec.Body.String(), ShouldContainSubstring, "Device ID is required")
+		})
+
+		Convey("returns 400 if data missing", func() {
+			body := []byte(`{"device_id":"dev123","signature":"c2ln"}`)
+			req := httptest.NewRequest(http.MethodPost, "/api/v0/verify_signature", bytes.NewBuffer(body))
+			rec := httptest.NewRecorder()
+
+			routes.VerifySignature(rec, req)
+
+			So(rec.Code, ShouldEqual, http.StatusBadRequest)
+			So(rec.Body.String(), ShouldContainSubstring, "Data is required")
+		})
+
+		Convey("returns 400 if signature missing", func() {
+			body := []byte(`{"device_id":"dev123","data":"payload"}`)
+			req := httptest.NewRequest(http.MethodPost, "/api/v0/verify_signature", bytes.NewBuffer(body))
+			rec := httptest.NewRecorder()
+
+			routes.VerifySignature(rec, req)
+
+			So(rec.Code, ShouldEqual, http.StatusBadRequest)
+			So(rec.Body.String(), ShouldContainSubstring, "Signature is required")
 		})
 
 		Convey("returns 404 if device not found", func() {
-			mockDB.EXPECT().Load("dev123").Return(nil, errors.New("device not found"))
-
-			body := `{"device_id": "dev123", "data": "abc", "signature": "c2ln"}`
-			req := httptest.NewRequest(http.MethodPost, "/verify", bytes.NewBufferString(body))
+			mockDB.EXPECT().Load("dev123").Return(nil, errors.New("not found"))
+			body := []byte(`{"device_id":"dev123","data":"payload","signature":"c2ln"}`)
+			req := httptest.NewRequest(http.MethodPost, "/api/v0/verify_signature", bytes.NewBuffer(body))
 			rec := httptest.NewRecorder()
 
 			routes.VerifySignature(rec, req)
 
 			So(rec.Code, ShouldEqual, http.StatusNotFound)
+			So(rec.Body.String(), ShouldContainSubstring, "not found")
 		})
 
-		Convey("returns 400 if signature is invalid base64", func() {
+		Convey("returns 500 if algorithm not available", func() {
 			dev := &domain.Device{ID: "dev123", Algorithm: "RSA"}
 			mockDB.EXPECT().Load("dev123").Return(dev, nil)
+			crypto.RegisterAlgorithm("RSA", nil)
 
-			body := `{"device_id": "dev123", "data": "abc", "signature": "!!!invalid!!!"}`
-			req := httptest.NewRequest(http.MethodPost, "/verify", bytes.NewBufferString(body))
+			body := []byte(`{"device_id":"dev123","data":"payload","signature":"c2ln"}`)
+			req := httptest.NewRequest(http.MethodPost, "/api/v0/verify_signature", bytes.NewBuffer(body))
+			rec := httptest.NewRecorder()
+
+			routes.VerifySignature(rec, req)
+
+			So(rec.Code, ShouldEqual, http.StatusInternalServerError)
+			So(rec.Body.String(), ShouldContainSubstring, "Something is wrong on our side")
+		})
+
+		Convey("returns 500 if ConstructKeyPair fails", func() {
+			dev := &domain.Device{ID: "dev123", Algorithm: "RSA"}
+			mockDB.EXPECT().Load("dev123").Return(dev, nil)
+			crypto.RegisterAlgorithm("RSA", mockAlgo)
+			mockAlgo.EXPECT().ConstructKeyPair(gomock.Any()).Return(nil, errors.New("keypair fail"))
+
+			body := []byte(`{"device_id":"dev123","data":"payload","signature":"c2ln"}`)
+			req := httptest.NewRequest(http.MethodPost, "/api/v0/verify_signature", bytes.NewBuffer(body))
+			rec := httptest.NewRecorder()
+
+			routes.VerifySignature(rec, req)
+
+			So(rec.Code, ShouldEqual, http.StatusInternalServerError)
+			So(rec.Body.String(), ShouldContainSubstring, "Something is wrong on our side")
+		})
+
+		Convey("returns 400 if base64 decode fails", func() {
+			dev := &domain.Device{ID: "dev123", Algorithm: "RSA"}
+			mockDB.EXPECT().Load("dev123").Return(dev, nil)
+			crypto.RegisterAlgorithm("RSA", mockAlgo)
+			mockAlgo.EXPECT().ConstructKeyPair(gomock.Any()).Return(mockKeyPair, nil)
+
+			body := []byte(`{"device_id":"dev123","data":"payload","signature":"invalid-base64=="}`)
+			req := httptest.NewRequest(http.MethodPost, "/api/v0/verify_signature", bytes.NewBuffer(body))
 			rec := httptest.NewRecorder()
 
 			routes.VerifySignature(rec, req)
 
 			So(rec.Code, ShouldEqual, http.StatusBadRequest)
+			So(rec.Body.String(), ShouldContainSubstring, "illegal base64 data")
 		})
 
-		Convey("returns 200 verified=true when signature is valid", func() {
+		Convey("returns 200 with verified=false if Verify fails", func() {
 			dev := &domain.Device{ID: "dev123", Algorithm: "RSA"}
 			mockDB.EXPECT().Load("dev123").Return(dev, nil)
-
-			mockAlgo := mocks.NewMockAlgorithm(ctrl)
-			mockAlgo.EXPECT().ConstructKeyPair(gomock.Any()).Return(mocks.NewMockKeyPair(ctrl), nil)
-			mockAlgo.EXPECT().Verify(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 			crypto.RegisterAlgorithm("RSA", mockAlgo)
+			mockAlgo.EXPECT().ConstructKeyPair(gomock.Any()).Return(mockKeyPair, nil)
+			mockKeyPair.EXPECT().PublicKey().Return(mockPubKey)
+			mockAlgo.EXPECT().Verify(mockPubKey, []byte("payload"), []byte("sig")).Return(errors.New("verify fail"))
 
-			sig := base64.StdEncoding.EncodeToString([]byte("ok"))
-			body := `{"device_id": "dev123", "data": "abc", "signature": "` + sig + `"}`
-			req := httptest.NewRequest(http.MethodPost, "/verify", bytes.NewBufferString(body))
+			body := []byte(`{"device_id":"dev123","data":"payload","signature":"c2ln"}`)
+			req := httptest.NewRequest(http.MethodPost, "/api/v0/verify_signature", bytes.NewBuffer(body))
 			rec := httptest.NewRecorder()
 
 			routes.VerifySignature(rec, req)
 
 			So(rec.Code, ShouldEqual, http.StatusOK)
-			var resp common.Response
-			json.Unmarshal(rec.Body.Bytes(), &resp)
-			data, _ := json.Marshal(resp.Data)
-			var out routes.VerifySignatureResponse
-			json.Unmarshal(data, &out)
-			So(out.Verified, ShouldBeTrue)
+			var resp verifyAPIResponse
+			err := json.Unmarshal(rec.Body.Bytes(), &resp)
+			So(err, ShouldBeNil)
+			So(resp.Data.Verified, ShouldBeFalse)
+			So(resp.Data.Reason, ShouldEqual, "verify fail")
 		})
 
-		Convey("returns 200 verified=false when verification fails", func() {
+		Convey("returns 200 on success", func() {
 			dev := &domain.Device{ID: "dev123", Algorithm: "RSA"}
 			mockDB.EXPECT().Load("dev123").Return(dev, nil)
-
-			mockAlgo := mocks.NewMockAlgorithm(ctrl)
-			mockAlgo.EXPECT().ConstructKeyPair(gomock.Any()).Return(mocks.NewMockKeyPair(ctrl), nil)
-			mockAlgo.EXPECT().Verify(gomock.Any(), gomock.Any(), gomock.Any()).Return(errors.New("bad signature"))
 			crypto.RegisterAlgorithm("RSA", mockAlgo)
+			mockAlgo.EXPECT().ConstructKeyPair(gomock.Any()).Return(mockKeyPair, nil)
+			mockKeyPair.EXPECT().PublicKey().Return(mockPubKey)
+			mockAlgo.EXPECT().Verify(mockPubKey, []byte("payload"), []byte("sig")).Return(nil)
 
-			sig := base64.StdEncoding.EncodeToString([]byte("ok"))
-			body := `{"device_id": "dev123", "data": "abc", "signature": "` + sig + `"}`
-			req := httptest.NewRequest(http.MethodPost, "/verify", bytes.NewBufferString(body))
+			body := []byte(`{"device_id":"dev123","data":"payload","signature":"c2ln"}`)
+			req := httptest.NewRequest(http.MethodPost, "/api/v0/verify_signature", bytes.NewBuffer(body))
 			rec := httptest.NewRecorder()
 
 			routes.VerifySignature(rec, req)
 
 			So(rec.Code, ShouldEqual, http.StatusOK)
-			var resp common.Response
-			json.Unmarshal(rec.Body.Bytes(), &resp)
-			data, _ := json.Marshal(resp.Data)
-			var out routes.VerifySignatureResponse
-			json.Unmarshal(data, &out)
-			So(out.Verified, ShouldBeFalse)
-			So(out.Reason, ShouldEqual, "bad signature")
+
+			var resp verifyAPIResponse
+			err := json.Unmarshal(rec.Body.Bytes(), &resp)
+			So(err, ShouldBeNil)
+			So(resp.Data.Verified, ShouldBeTrue)
+			So(resp.Data.Reason, ShouldBeEmpty)
 		})
 	})
 }
