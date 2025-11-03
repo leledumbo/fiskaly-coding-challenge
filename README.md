@@ -55,7 +55,7 @@ The HTTP client assumed here is curl, adjust accordingly if you use a different 
 # Design decisions and trade-offs
 
 I'll write this in story style so you can see my POV when working on the challenge. If you want a
-straightforward version, feel free to jump to [summary](## Summary).
+straightforward version, feel free to jump to [summary](#summary).
 
 The first thing I do is understanding the directory structure and see what has been provided for me
 as a starting point. I see no use of 3rd party framework, only Go's standard "net/http" with
@@ -214,7 +214,7 @@ I only use ChatGPT throughout the challenge, mainly for asking:
 
 # Approximate time spent
 
-Summing approximate time spent from [design decisions and trade-offs](# Design decisions and trade-offs)
+Summing approximate time spent from [design decisions and trade-offs](#design-decisions-and-trade-offs)
 section:
 
 * fastest: 15 + 15 + 30 + 60 + 5 +  90 + 15 + 30 + 90 = 350 minutes
