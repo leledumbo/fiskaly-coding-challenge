@@ -49,8 +49,6 @@ func WriteErrorResponse(w http.ResponseWriter, code int, errors []string) {
 // WriteAPIResponse takes an HTTP status code and a generic data struct
 // and writes those as an HTTP response in a structured format.
 func WriteAPIResponse(w http.ResponseWriter, code int, data any) {
-	w.WriteHeader(code)
-
 	response := Response{
 		Data: data,
 	}
@@ -58,8 +56,10 @@ func WriteAPIResponse(w http.ResponseWriter, code int, data any) {
 	bytes, err := json.MarshalIndent(response, "", "  ")
 	if err != nil {
 		WriteInternalError(w)
+		return
 	}
 
+	w.WriteHeader(code)
 	w.Write(bytes)
 }
 
