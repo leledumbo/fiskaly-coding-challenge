@@ -8,7 +8,6 @@ import (
 	"github.com/leledumbo/fiskaly-coding-challenge/signing-service-challenge-go/crypto"
 	"github.com/leledumbo/fiskaly-coding-challenge/signing-service-challenge-go/domain"
 	"github.com/leledumbo/fiskaly-coding-challenge/signing-service-challenge-go/persistence"
-	"io"
 	"net/http"
 )
 
@@ -53,10 +52,8 @@ func CreateSignatureDevice(response http.ResponseWriter, request *http.Request) 
 		return
 	}
 
-	body, _ := io.ReadAll(request.Body)
-	defer request.Body.Close()
 	var input CreateSignatureDeviceRequest
-	if err := json.Unmarshal(body, &input); err != nil {
+	if err := common.ParseJSONRequestBody(request.Body, &input); err != nil {
 		common.WriteErrorResponse(response, http.StatusBadRequest, []string{
 			err.Error(),
 		})

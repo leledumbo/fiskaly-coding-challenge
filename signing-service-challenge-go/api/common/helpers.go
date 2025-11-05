@@ -2,6 +2,7 @@ package common
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 )
 
@@ -60,4 +61,12 @@ func WriteAPIResponse(w http.ResponseWriter, code int, data any) {
 	}
 
 	w.Write(bytes)
+}
+
+// ParseJSONRequestBody parses request body for an expected JSON structure, pass pointer to it as the second parameter
+func ParseJSONRequestBody(requestBody io.ReadCloser, input interface{}) error {
+	body, _ := io.ReadAll(requestBody)
+	defer requestBody.Close()
+
+	return json.Unmarshal(body, input)
 }

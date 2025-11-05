@@ -1,6 +1,7 @@
 package domain
 
 type Device struct {
+	// Device ID, suggestion: use UUID, but any string is OK
 	ID string
 	// Name of the algorithm chosen for this device
 	Algorithm string
